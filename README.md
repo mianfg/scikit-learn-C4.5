@@ -1,35 +1,60 @@
-# Scikit-learn C4.5 tree classifier
-A C4.5 tree classifier based on the [zhangchiyu10/pyC45](https://github.com/zhangchiyu10/pyC45) repository, refactored to be compatible with the [scikit-learn](https://scikit-learn.org/stable/index.html) library.
+# scikit-learn C4.5 classifier
 
-To use this classifier, just copy c45 directory to your project and import classifier where you need it using `from c45 import C45` line
+This is a C4.5 classifier compatible with `scikit-learn`, and more precisely, with `scikit-learn.model_selection.GridSearchCV`.
+
+This repo is forked from [RaczeQ/scikit-learn-C4.5-tree-classifier](https://github.com/RaczeQ/scikit-learn-C4.5-tree-classifier), which is in turn based on [zhangchiyu10/pyC45](https://github.com/zhangchiyu10/pyC45).
+
+## Example usage
+
+It is important to pass the feature names to the constructor. In case you use a column transformer, you will need to know the column names beforehand by executing the transformer before the grid search pipeline.
 
 Example usage can be found in a main.py file:
 
-```
->>> from sklearn.datasets import load_iris
->>> from sklearn.model_selection import train_test_split
->>> from c45 import C45
->>>
->>> iris = load_iris()
->>> clf = C45(attrNames=iris.feature_names)
->>> X_train, X_test, y_train, y_test = train_test_split(iris.data, iris.target, test_size=0.5)
->>> clf.fit(X_train, y_train)
-C45(attrNames=['sepallengthcm', 'sepalwidthcm', 'petallengthcm', 'petalwidthcm'])
->>> print(f'Accuracy: {clf.score(X_test, y_test)}')
-Accuracy: 0.8533333333333334
->>> clf.printTree()
-<?xml version="1.0" ?>
-<DecisionTree>
-        <petallengthcm flag="l" p="0.413" value="3.7">0</petallengthcm>
-        <petallengthcm flag="r" p="0.587" value="3.7">
-                <petallengthcm flag="l" p="0.591" value="4.8">1</petallengthcm>
-                <petallengthcm flag="r" p="0.409" value="4.8">
-                        <petallengthcm flag="l" p="0.111" value="5.0">
-                                <sepallengthcm flag="l" p="0.5" value="6.3">2</sepallengthcm>
-                                <sepallengthcm flag="r" p="0.5" value="6.3">1</sepallengthcm>
-                        </petallengthcm>
-                        <petallengthcm flag="r" p="0.889" value="5.0">2</petallengthcm>
-                </petallengthcm>
-        </petallengthcm>
-</DecisionTree>
+```python
+from imblearn.pipeline import Pipeline
+from sklearn.compose import make_column_transformer
+from sklearn.decomposition import PCA  # for example
+
+from sklearn.model_selection import GridSearchCV
+from sklearn.tree import DecisionTreeClassifier  # to have another model to check
+
+from c45 import C45
+
+categorical_preprocessing = make_column_transformer(
+    ...,
+    remainder='passthrough',
+    verbose_feature_names_out=False
+)
+
+X_tr = categorical_preprocessing.fit_transform(X)
+feature_names = categorical_preprocessing.get_feature_names_out()
+
+
+pipe = Pipeline([
+    ('dimensionality_reduction', 'passthrough'),
+    ('clf', 'passthrough')
+])
+
+param_grid = {
+    'dimensionality_reduction': [
+        'passthrough',
+        PCA()
+    ],
+    'clf': [
+        *[DecisionTreeClassifier(
+            random_state=19,
+            criterion=prd['criterion'],
+            #max_features=prd['max_features'],
+            max_depth=prd['max_depth']
+        ) for prd in product_dict(
+            #max_features=[None, 'sqrt', 'log2'],
+            max_depth=[4,5,6,7,8,9,10,None],
+            criterion=['gini', 'entropy', 'log_loss'], 
+        )],
+        C45(attrNames_=feature_names[:-1])
+    ]
+}
+
+cv = GridSearchCV(pipe, param_grid=param_grid, scoring='accuracy', cv=5, n_jobs=-1, verbose=10)
+cv.fit(X_tr, y)
 ```

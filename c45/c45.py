@@ -39,45 +39,48 @@ class C45(BaseEstimator, ClassifierMixin):
     array([ 1.     ,  0.93...,  0.86...,  0.93...,  0.93...,
             0.93...,  0.93...,  1.     ,  0.93...,  1.      ])
     """
-    def __init__(self, attrNames=None):
-        if attrNames is not None:
-            attrNames = [''.join(i for i in x if i.isalnum()).replace(' ', '_') for x in attrNames]
-        self.attrNames = attrNames
+    def __init__(self, attrNames_=None):
+        #if attrNames_ is not None:
+        #    attrNames_ = [''.join(i for i in x if i.isalnum()).replace(' ', '_') for x in attrNames_]
+        self.attrNames_ = attrNames_
 
     def fit(self, X, y):
         X, y = check_X_y(X, y)
         self.X_ = X
         self.y_ = y
         self.resultType = type(y[0])
-        if self.attrNames is None:
-            self.attrNames = [f'attr{x}' for x in range(len(self.X_[0]))]
+        assert(self.attrNames_ is not None)
+        #if self.attrNames_ is None:
+        #    self.attrNames_ = [f'attr{x}' for x in range(len(self.X_[0]))]
 
-        assert(len(self.attrNames) == len(self.X_[0]))
+        assert(len(self.attrNames_) == len(self.X_[0]))
 
-        data = [[] for i in range(len(self.attrNames))]
+        data = [[] for i in range(len(self.attrNames_))]
         categories = []
 
         for i in range(len(self.X_)):
             categories.append(str(self.y_[i]))
-            for j in range(len(self.attrNames)):
+            for j in range(len(self.attrNames_)):
                 data[j].append(self.X_[i][j])
         root = ET.Element('DecisionTree')
-        grow_tree(data,categories,root,self.attrNames)
+        grow_tree(data,categories,root,self.attrNames_)
         self.tree_ = ET.tostring(root, encoding="unicode")
+
+        self.classes_ = self.predict(X)
         return self
 
     def predict(self, X):
-        check_is_fitted(self, ['tree_', 'resultType', 'attrNames'])
+        #check_is_fitted(self, ['tree_', 'resultType', 'attrNames'])
         X = check_array(X)
         dom = minidom.parseString(self.tree_)
         root = dom.childNodes[0]
-        prediction = []
+        predictions = []
         for i in range(len(X)):
-            answerlist = decision(root,X[i],self.attrNames,1)
+            answerlist = decision(root,X[i],self.attrNames_,1)
             answerlist = sorted(answerlist.items(), key=lambda x:x[1], reverse = True )
             answer = answerlist[0][0]
-            prediction.append((self.resultType)(answer))
-        return prediction
+            predictions.append((self.resultType)(answer))
+        return predictions
 
     def printTree(self):
         check_is_fitted(self, ['tree_'])

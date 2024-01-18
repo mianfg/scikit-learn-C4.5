@@ -179,7 +179,7 @@ def decision(root,obs,attrs_names,p):
             
             return decision(root.firstChild,obs,attrs_names,p)  
         else:
-            att=obs[attrs_names.index(att_name)]
+            att=obs[list(attrs_names).index(att_name)]
             if att=="?":
                 d={}
                 for child in root.childNodes:                    
